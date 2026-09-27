@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+.Trash-0/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+
+# Environment/secrets (if you add any later)
+.env
