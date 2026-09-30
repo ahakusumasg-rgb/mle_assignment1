@@ -17,6 +17,13 @@ import utils.data_processing_bronze_table
 import utils.data_processing_silver_table
 import utils.data_processing_gold_table
 
+## Additional on top of Lab-2
+import seaborn as sns
+from pyspark.sql.window import Window
+import utils.data_processing_silver_clickstream_table
+import utils.data_processing_silver_attributes_table
+import utils.data_processing_silver_financials_table
+
 
 # Initialize SparkSession
 spark = pyspark.sql.SparkSession.builder \
@@ -62,35 +69,68 @@ print(dates_str_lst)
 
 # create bronze datalake
 bronze_lms_directory = "datamart/bronze/lms/"
+bronze_clickstream_directory = "datamart/bronze/clickstream/"
+bronze_attributes_directory = "datamart/bronze/attributes/"
+bronze_financials_directory = "datamart/bronze/financials/"
 
-if not os.path.exists(bronze_lms_directory):
-    os.makedirs(bronze_lms_directory)
+bronze_directories = [
+    bronze_lms_directory,
+    bronze_clickstream_directory,
+    bronze_attributes_directory,
+    bronze_financials_directory,
+]
+
+for d in bronze_directories:
+    if not os.path.exists(d):
+        os.makedirs(d)
 
 # run bronze backfill
-for date_str in dates_str_lst:
-    utils.data_processing_bronze_table.process_bronze_table(date_str, bronze_lms_directory, spark)
-
+for d in bronze_directories:
+    for date_str in dates_str_lst:
+        utils.data_processing_bronze_table.process_bronze_table(date_str, d, spark)
 
 # create silver datalake
-silver_loan_daily_directory = "datamart/silver/loan_daily/"
+silver_loan_daily_directory = "datamart/silver/lms/"
+silver_clickstream_directory = "datamart/silver/clickstream/"
+silver_attributes_directory = "datamart/silver/attributes/"
+silver_financials_directory = "datamart/silver/financials/"
 
-if not os.path.exists(silver_loan_daily_directory):
-    os.makedirs(silver_loan_daily_directory)
+silver_directories = [
+    silver_loan_daily_directory,
+    silver_clickstream_directory,
+    silver_attributes_directory,
+    silver_financials_directory,
+]
+
+for d in silver_directories:
+    if not os.path.exists(d):
+        os.makedirs(d)
 
 # run silver backfill
 for date_str in dates_str_lst:
     utils.data_processing_silver_table.process_silver_table(date_str, bronze_lms_directory, silver_loan_daily_directory, spark)
-
+    utils.data_processing_silver_clickstream_table.process_silver_clickstream_table(date_str, bronze_clickstream_directory, silver_clickstream_directory, spark)
+    utils.data_processing_silver_attributes_table.process_silver_attributes_table(date_str, bronze_attributes_directory, silver_attributes_directory, spark)
+    utils.data_processing_silver_financials_table.process_silver_financials_table(date_str, bronze_financials_directory, silver_financials_directory, spark)
 
 # create gold datalake
 gold_label_store_directory = "datamart/gold/label_store/"
+gold_feature_store_directory = "datamart/gold/feature_store/"
 
-if not os.path.exists(gold_label_store_directory):
-    os.makedirs(gold_label_store_directory)
+gold_directories =[gold_label_store_directory, gold_feature_store_directory]
+
+for d in gold_directories:
+    if not os.path.exists(d):
+        os.makedirs(d)
 
 # run gold backfill
 for date_str in dates_str_lst:
     utils.data_processing_gold_table.process_labels_gold_table(date_str, silver_loan_daily_directory, gold_label_store_directory, spark, dpd = 30, mob = 6)
+
+for date_str in dates_str_lst:    
+    utils.data_processing_gold_table.process_features_gold_table(date_str, gold_label_store_directory, silver_clickstream_directory, \
+                                                               silver_attributes_directory, silver_financials_directory, \
+                                                               gold_feature_store_directory, spark, mob = 6)
 
 
 folder_path = gold_label_store_directory
@@ -100,6 +140,9 @@ print("row_count:",df.count())
 
 df.show()
 
+folder_path = gold_feature_store_directory
+files_list = [folder_path + os.path.basename(f) for f in glob.glob(os.path.join(folder_path, '*'))]
+df = spark.read.parquet(*files_list)
 
-
-    
+print("row_count:", df.count())
+df.show(n=3, vertical=True, truncate=False)

@@ -29,7 +29,7 @@ def process_silver_financials_table(snapshot_date_str, bronze_financials_directo
     
     ## Group-1 string trailing "_"
     df = df.withColumn("Annual_Income", F.regexp_replace(col("Annual_Income"), "_$", "").cast(FloatType()))
-    df = df.withColumn("Num_of_Loan", F.regexp_replace(col("Num_of_Loan"), "_$", "").cast(IntegerType()))
+    # df = df.withColumn("Num_of_Loan", F.regexp_replace(col("Num_of_Loan"), "_$", "").cast(IntegerType()))
     df = df.withColumn("Num_of_Delayed_Payment", F.regexp_replace(col("Num_of_Delayed_Payment"), "_$", "").cast(IntegerType()))
     df = df.withColumn("Outstanding_Debt", F.regexp_replace(col("Outstanding_Debt"), "_$", "").cast(FloatType()))
 
@@ -37,7 +37,12 @@ def process_silver_financials_table(snapshot_date_str, bronze_financials_directo
     df = df.withColumn("Num_Bank_Accounts", F.when((col("Num_Bank_Accounts") < 0) | (col("Num_Bank_Accounts") > 20), None).otherwise(col("Num_Bank_Accounts")))
     df = df.withColumn("Num_Credit_Card", F.when(col("Num_Credit_Card") > 20, None).otherwise(col("Num_Credit_Card")))
     df = df.withColumn("Interest_Rate", F.when(col("Interest_Rate") > 50, None).otherwise(col("Interest_Rate")))
-    df = df.withColumn("Num_of_Loan", F.when((col("Num_of_Loan") < 0) | (col("Num_of_Loan") > 10), None).otherwise(col("Num_of_Loan")))
+    # df = df.withColumn("Num_of_Loan", F.when((col("Num_of_Loan") < 0) | (col("Num_of_Loan") > 10), None).otherwise(col("Num_of_Loan")))
+    df = df.withColumn("Num_of_Loan",
+    F.when(col("Type_of_Loan").isNull(), 0)
+     .otherwise(F.size(F.split(col("Type_of_Loan"), ",")))
+                      )
+    df = df.drop("Type_of_Loan") # drop as now it's used only to derive Num_of_Loan
     df = df.withColumn("Delay_from_due_date", F.when(col("Delay_from_due_date") < 0, None).otherwise(col("Delay_from_due_date")))
     df = df.withColumn("Num_of_Delayed_Payment", F.when((col("Num_of_Delayed_Payment") < 0) | (col("Num_of_Delayed_Payment") > 36),\
                                                         None).otherwise(col("Num_of_Delayed_Payment")))
